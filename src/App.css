@@ -350,3 +350,79 @@ input {
   gap: 0.4rem;
   align-items: flex-end;
 }
+
+/* ---------------------------------------------------------------------------
+   Phones. Also covers home-screen (standalone) launches, where the page runs
+   edge-to-edge and has to clear the notch / home indicator itself.
+   --------------------------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .vault-shell {
+    padding: 1rem max(0.85rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom))
+      max(0.85rem, env(safe-area-inset-left));
+  }
+
+  .vault-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .vault-header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  /* stack the add-forms: side-by-side inputs get uselessly narrow */
+  .add-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .add-form input {
+    flex: none;
+    width: 100%;
+  }
+
+  .add-form .brass-button {
+    width: 100%;
+    padding: 0.6rem 1rem;
+  }
+
+  .ledger-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* let the actions drop below the document details instead of squeezing them */
+  .document-row {
+    flex-wrap: wrap;
+  }
+
+  .document-info {
+    flex: 1 1 55%;
+  }
+
+  .document-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    width: 100%;
+    gap: 0.75rem;
+  }
+
+  /* comfortable tap targets */
+  .document-actions .brass-button.small,
+  .document-actions .link-button.small {
+    padding: 0.5rem 0.9rem;
+    font-size: 0.9rem;
+  }
+
+  .auth-shell {
+    padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
+@media (display-mode: standalone) {
+  .vault-shell {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+}

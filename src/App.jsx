@@ -13,7 +13,14 @@ import {
 } from './lib/api'
 
 const ROOT_LABEL = { property: 'Property', deal: 'Deal', project: 'Project', building: 'Building' }
+const ROOT_PLURAL = {
+  property: 'Properties',
+  deal: 'Deals',
+  project: 'Projects',
+  building: 'Buildings',
+}
 const CHILD_LABEL = { unit: 'Unit', resident: 'Resident' }
+const CHILD_PLURAL = { unit: 'Units', resident: 'Residents' }
 
 export default function App() {
   const { session, profile, loading, signOut } = useAuth()
@@ -121,6 +128,7 @@ function Vault({ profile, onSignOut }) {
           <AssetList
             assets={rootAssets}
             label={ROOT_LABEL[rootType]}
+            plural={ROOT_PLURAL[rootType]}
             onAdd={handleAddRoot}
             onSelect={setSelectedRoot}
           />
@@ -130,6 +138,7 @@ function Vault({ profile, onSignOut }) {
           <AssetList
             assets={childAssets}
             label={CHILD_LABEL[childType]}
+            plural={CHILD_PLURAL[childType]}
             onAdd={handleAddChild}
             onSelect={setSelectedChild}
           />
@@ -146,23 +155,16 @@ function Vault({ profile, onSignOut }) {
   )
 }
 
+// Real scoped/expiring share links need the share_links table plus an Edge
+// Function to redeem the token. Until that exists this stays visibly inert
+// rather than handing back a link-shaped string that doesn't resolve.
 function ShareLinkNotice() {
-  const [link, setLink] = useState(null)
-
   return (
     <div className="share-notice">
-      {link ? (
-        <p className="muted">
-          Mock link (not yet backed by a real share): <code>{link}</code>
-        </p>
-      ) : (
-        <button
-          className="link-button"
-          onClick={() => setLink(`vault://share/${crypto.randomUUID()}`)}
-        >
-          Generate verified share link (mock — see supabase/README.md phase 6)
-        </button>
-      )}
+      <button className="link-button" type="button" disabled>
+        Generate verified share link
+      </button>
+      <span className="muted"> — not available yet</span>
     </div>
   )
 }
