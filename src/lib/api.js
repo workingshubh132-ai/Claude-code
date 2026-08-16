@@ -101,37 +101,88 @@ export async function verifyDocument(id, verifierId) {
   })
 }
 
-// Compresses the photo into full + thumbnail variants, uploads both to the
-// private "documents" bucket under {assetId}/{documentId}/, and records the
-// resulting paths on the document row (status flips to "uploaded").
-export async function uploadDocumentPhoto({ assetId, documentId, file, uploadedBy }) {
+export async function listPhotos(documentId) {
+  const { data, error } = await supabase
+    .from('document_photos')
+    .select('*')
+    .eq('document_id', documentId)
+    .order('position', { ascending: true })
+  if (error) throw error
+  return data
+}
+
+// Compresses one photo into full + thumbnail variants, uploads both to the
+// private "documents" bucket, and records a document_photos row.
+async function uploadOnePhoto({ assetId, documentId, file, position, uploadedBy }) {
+  const photoId = crypto.randomUUID()
+  const fullPath = `${assetId}/${documentId}/${photoId}/full.jpg`
+  const thumbPath = `${assetId}/${documentId}/${photoId}/thumb.jpg`
+
   const [fullBlob, thumbBlob] = await Promise.all([
     resizeImage(file, FULL_SIZE),
     resizeImage(file, THUMB_SIZE),
   ])
 
-  const fullPath = `${assetId}/${documentId}/full.jpg`
-  const thumbPath = `${assetId}/${documentId}/thumb.jpg`
-
   const [fullUpload, thumbUpload] = await Promise.all([
-    supabase.storage.from('documents').upload(fullPath, fullBlob, {
-      contentType: 'image/jpeg',
-      upsert: true,
-    }),
-    supabase.storage.from('documents').upload(thumbPath, thumbBlob, {
-      contentType: 'image/jpeg',
-      upsert: true,
-    }),
+    supabase.storage
+      .from('documents')
+      .upload(fullPath, fullBlob, { contentType: 'image/jpeg', upsert: true }),
+    supabase.storage
+      .from('documents')
+      .upload(thumbPath, thumbBlob, { contentType: 'image/jpeg', upsert: true }),
   ])
   if (fullUpload.error) throw fullUpload.error
   if (thumbUpload.error) throw thumbUpload.error
 
-  return updateDocument(documentId, {
-    storage_path: fullPath,
-    thumbnail_path: thumbPath,
-    status: 'uploaded',
-    uploaded_by: uploadedBy,
-  })
+  const { data, error } = await supabase
+    .from('document_photos')
+    .insert({
+      id: photoId,
+      document_id: documentId,
+      storage_path: fullPath,
+      thumbnail_path: thumbPath,
+      position,
+      uploaded_by: uploadedBy,
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+// Uploads a batch one at a time -- resizing several full-size photos at once is
+// a good way to get the tab killed on a phone. onProgress fires with
+// (done, total) so the UI can show where it is.
+export async function uploadDocumentPhotos({
+  assetId,
+  documentId,
+  files,
+  startPosition = 0,
+  uploadedBy,
+  onProgress,
+}) {
+  const uploaded = []
+  for (let i = 0; i < files.length; i++) {
+    uploaded.push(
+      await uploadOnePhoto({
+        assetId,
+        documentId,
+        file: files[i],
+        position: startPosition + i,
+        uploadedBy,
+      })
+    )
+    onProgress?.(i + 1, files.length)
+  }
+  return uploaded
+}
+
+export async function deletePhoto(photo) {
+  const { error } = await supabase.from('document_photos').delete().eq('id', photo.id)
+  if (error) throw error
+  // Best effort: the row is what the UI reads, and only the asset owner is
+  // permitted to remove the underlying storage objects.
+  await supabase.storage.from('documents').remove([photo.storage_path, photo.thumbnail_path])
 }
 
 const urlCache = new Map()

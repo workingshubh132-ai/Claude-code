@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react'
-import { getSignedUrl, uploadDocumentPhoto, verifyDocument, deleteDocument } from '../lib/api'
+import {
+  getSignedUrl,
+  listPhotos,
+  uploadDocumentPhotos,
+  deletePhoto,
+  verifyDocument,
+  updateDocument,
+  deleteDocument,
+} from '../lib/api'
 
 const STATUS_LABEL = { missing: 'Missing', uploaded: 'Uploaded', verified: 'Verified' }
 
@@ -10,38 +18,86 @@ function isExpiringSoon(expiryDate) {
 }
 
 export default function DocumentRow({ doc, userId, onChanged }) {
-  const [thumbUrl, setThumbUrl] = useState(null)
+  const [photos, setPhotos] = useState([])
+  const [urls, setUrls] = useState({})
   const [busy, setBusy] = useState(false)
+  const [progress, setProgress] = useState(null)
   const [error, setError] = useState(null)
 
   useEffect(() => {
     let cancelled = false
-    if (doc.thumbnail_path) {
-      getSignedUrl(doc.thumbnail_path).then((url) => {
-        if (!cancelled) setThumbUrl(url)
-      })
-    } else {
-      setThumbUrl(null)
-    }
+    listPhotos(doc.id)
+      .then((data) => !cancelled && setPhotos(data))
+      .catch((err) => !cancelled && setError(err.message))
     return () => {
       cancelled = true
     }
-  }, [doc.thumbnail_path])
+  }, [doc.id])
 
-  async function handleFile(e) {
-    const file = e.target.files?.[0]
+  // Sign each thumbnail once it appears in the list.
+  useEffect(() => {
+    let cancelled = false
+    const missing = photos.filter((p) => !urls[p.thumbnail_path])
+    if (missing.length === 0) return
+
+    Promise.all(
+      missing.map(async (p) => [p.thumbnail_path, await getSignedUrl(p.thumbnail_path)])
+    )
+      .then((pairs) => {
+        if (cancelled) return
+        setUrls((prev) => ({ ...prev, ...Object.fromEntries(pairs) }))
+      })
+      .catch((err) => !cancelled && setError(err.message))
+
+    return () => {
+      cancelled = true
+    }
+  }, [photos, urls])
+
+  async function handleFiles(e) {
+    const files = Array.from(e.target.files ?? [])
     e.target.value = ''
-    if (!file) return
+    if (files.length === 0) return
+
+    setBusy(true)
+    setError(null)
+    setProgress({ done: 0, total: files.length })
+    try {
+      const added = await uploadDocumentPhotos({
+        assetId: doc.asset_id,
+        documentId: doc.id,
+        files,
+        startPosition: photos.length,
+        uploadedBy: userId,
+        onProgress: (done, total) => setProgress({ done, total }),
+      })
+      setPhotos((prev) => [...prev, ...added])
+
+      // First photo on a document moves it out of "missing".
+      if (doc.status === 'missing') {
+        onChanged(await updateDocument(doc.id, { status: 'uploaded', uploaded_by: userId }))
+      }
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+      setProgress(null)
+    }
+  }
+
+  async function handleRemovePhoto(photo) {
     setBusy(true)
     setError(null)
     try {
-      const updated = await uploadDocumentPhoto({
-        assetId: doc.asset_id,
-        documentId: doc.id,
-        file,
-        uploadedBy: userId,
-      })
-      onChanged(updated)
+      await deletePhoto(photo)
+      const remaining = photos.filter((p) => p.id !== photo.id)
+      setPhotos(remaining)
+      // Last photo gone: the document is missing its evidence again.
+      if (remaining.length === 0 && doc.status !== 'missing') {
+        onChanged(
+          await updateDocument(doc.id, { status: 'missing', verified_by: null, verified_at: null })
+        )
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -53,8 +109,7 @@ export default function DocumentRow({ doc, userId, onChanged }) {
     setBusy(true)
     setError(null)
     try {
-      const updated = await verifyDocument(doc.id, userId)
-      onChanged(updated)
+      onChanged(await verifyDocument(doc.id, userId))
     } catch (err) {
       setError(err.message)
     } finally {
@@ -79,14 +134,6 @@ export default function DocumentRow({ doc, userId, onChanged }) {
 
   return (
     <div className={`document-row status-${doc.status}`}>
-      <div className="document-thumb">
-        {thumbUrl ? (
-          <img src={thumbUrl} alt={doc.name} />
-        ) : (
-          <div className="document-thumb-empty">No photo</div>
-        )}
-      </div>
-
       <div className="document-info">
         <div className="document-name-row">
           <strong>{doc.name}</strong>
@@ -99,23 +146,59 @@ export default function DocumentRow({ doc, userId, onChanged }) {
               Expires {new Date(doc.expiry_date).toLocaleDateString()}
             </span>
           )}
+          <span>
+            {photos.length === 0
+              ? 'No photos'
+              : `${photos.length} photo${photos.length === 1 ? '' : 's'}`}
+          </span>
         </div>
+
+        <div className="photo-strip">
+          {photos.map((photo) => (
+            <div key={photo.id} className="photo-thumb">
+              {urls[photo.thumbnail_path] ? (
+                <img src={urls[photo.thumbnail_path]} alt={doc.name} />
+              ) : (
+                <div className="photo-thumb-empty">…</div>
+              )}
+              <button
+                type="button"
+                className="photo-remove"
+                title="Remove photo"
+                onClick={() => handleRemovePhoto(photo)}
+                disabled={busy}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+
+          {/* No `capture` attribute: that forces the camera and hides the
+              gallery on mobile. Without it the OS offers both. */}
+          <label className={`photo-add ${busy ? 'disabled' : ''}`}>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleFiles}
+              disabled={busy}
+              hidden
+            />
+            <span>+</span>
+            <span className="photo-add-label">Add</span>
+          </label>
+        </div>
+
+        {progress && (
+          <p className="muted">
+            Uploading {progress.done} of {progress.total}…
+          </p>
+        )}
         {error && <p className="error-text">{error}</p>}
       </div>
 
       <div className="document-actions">
-        <label className="brass-button small">
-          {doc.status === 'missing' ? 'Capture' : 'Retake'}
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handleFile}
-            disabled={busy}
-            hidden
-          />
-        </label>
-        {doc.status === 'uploaded' && (
+        {photos.length > 0 && doc.status !== 'verified' && (
           <button className="brass-button small" onClick={handleVerify} disabled={busy}>
             Verify
           </button>
