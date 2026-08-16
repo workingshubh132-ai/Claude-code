@@ -244,6 +244,106 @@ input {
   margin-bottom: 1rem;
 }
 
+/* tabs */
+
+.tab-bar {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--parchment-line);
+  margin-bottom: 1rem;
+}
+
+.tab {
+  background: none;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  color: var(--ink-soft);
+  font-variant: small-caps;
+  letter-spacing: 0.04em;
+}
+
+.tab.active {
+  background: var(--parchment-dark);
+  border-color: var(--parchment-line);
+  color: var(--ink);
+  font-weight: 600;
+  margin-bottom: -1px;
+}
+
+/* hisab */
+
+.hisab-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--parchment-dark);
+  border: 1px solid var(--parchment-line);
+  border-left: 5px solid var(--brass);
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.hisab-total {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.hisab-total strong {
+  font-size: 1.1rem;
+}
+
+.amount-received {
+  color: var(--verified);
+}
+
+.amount-pending {
+  color: var(--danger);
+}
+
+.payment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.payment-row {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  background: var(--parchment-dark);
+  border: 1px solid var(--parchment-line);
+  border-left: 5px solid var(--danger);
+  border-radius: 4px;
+  padding: 0.75rem;
+}
+
+.payment-row.status-received {
+  border-left-color: var(--verified);
+}
+
+.payment-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.payment-amount {
+  white-space: nowrap;
+  font-size: 1.05rem;
+}
+
+.add-form select {
+  padding: 0.5rem;
+  border: 1px solid var(--parchment-line);
+  border-radius: 4px;
+  background: var(--parchment);
+  color: var(--ink);
+}
+
 /* documents */
 
 .document-list {
@@ -415,8 +515,12 @@ input {
 
 @media (max-width: 640px) {
   .vault-shell {
-    padding: 1rem max(0.85rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom))
-      max(0.85rem, env(safe-area-inset-left));
+    /* plain fallback first: browsers without max() drop the whole
+       declaration, which would leave the page with no padding at all */
+    padding: 1rem 0.85rem;
+    padding-right: max(0.85rem, env(safe-area-inset-right));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    padding-left: max(0.85rem, env(safe-area-inset-left));
   }
 
   .vault-header {
@@ -435,9 +539,30 @@ input {
     align-items: stretch;
   }
 
-  .add-form input {
+  .add-form input,
+  .add-form select {
     flex: none;
     width: 100%;
+  }
+
+  .payment-row {
+    flex-wrap: wrap;
+  }
+
+  .payment-info {
+    flex: 1 1 60%;
+  }
+
+  .payment-row .document-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    width: 100%;
+    gap: 0.75rem;
+  }
+
+  .hisab-summary {
+    gap: 1rem;
   }
 
   .add-form .brass-button {
@@ -474,12 +599,15 @@ input {
   }
 
   .auth-shell {
-    padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom));
+    padding: 1rem;
+    padding-top: max(1rem, env(safe-area-inset-top));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
 }
 
 @media (display-mode: standalone) {
   .vault-shell {
+    padding-top: 1rem;
     padding-top: max(1rem, env(safe-area-inset-top));
   }
 }

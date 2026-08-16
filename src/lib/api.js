@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient'
 import { resizeImage, FULL_SIZE, THUMB_SIZE } from './image'
+import { newId } from './id'
 
 export const ROOT_TYPE_BY_ROLE = {
   owner: 'property',
@@ -114,7 +115,7 @@ export async function listPhotos(documentId) {
 // Compresses one photo into full + thumbnail variants, uploads both to the
 // private "documents" bucket, and records a document_photos row.
 async function uploadOnePhoto({ assetId, documentId, file, position, uploadedBy }) {
-  const photoId = crypto.randomUUID()
+  const photoId = newId()
   const fullPath = `${assetId}/${documentId}/${photoId}/full.jpg`
   const thumbPath = `${assetId}/${documentId}/${photoId}/thumb.jpg`
 
@@ -183,6 +184,74 @@ export async function deletePhoto(photo) {
   // Best effort: the row is what the UI reads, and only the asset owner is
   // permitted to remove the underlying storage objects.
   await supabase.storage.from('documents').remove([photo.storage_path, photo.thumbnail_path])
+}
+
+// --- hisab -----------------------------------------------------------------
+
+export async function listPayments(assetId) {
+  const { data, error } = await supabase
+    .from('payments')
+    .select('*')
+    .eq('asset_id', assetId)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return data
+}
+
+export async function createPayment({
+  assetId,
+  description,
+  amount,
+  direction,
+  dueDate,
+  recordedBy,
+}) {
+  const { data, error } = await supabase
+    .from('payments')
+    .insert({
+      asset_id: assetId,
+      description,
+      amount,
+      direction,
+      status: 'pending',
+      due_date: dueDate || null,
+      recorded_by: recordedBy,
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function setPaymentStatus(id, status) {
+  const { data, error } = await supabase
+    .from('payments')
+    .update({
+      status,
+      settled_at: status === 'received' ? new Date().toISOString() : null,
+    })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function deletePayment(id) {
+  const { error } = await supabase.from('payments').delete().eq('id', id)
+  if (error) throw error
+}
+
+export function subscribeToPayments(assetId, onChange) {
+  const channel = supabase
+    .channel(`payments-${assetId}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'payments', filter: `asset_id=eq.${assetId}` },
+      onChange
+    )
+    .subscribe()
+  return () => supabase.removeChannel(channel)
 }
 
 const urlCache = new Map()

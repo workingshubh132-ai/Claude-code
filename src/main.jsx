@@ -1,3 +1,4 @@
+import './polyfills' // must stay first: patches globals the imports below rely on
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'

@@ -3,6 +3,7 @@ import { useAuth } from './AuthProvider'
 import AuthScreen from './components/AuthScreen'
 import AssetList from './components/AssetList'
 import DocumentList from './components/DocumentList'
+import PaymentList from './components/PaymentList'
 import {
   ROOT_TYPE_BY_ROLE,
   CHILD_TYPE_BY_ROOT_TYPE,
@@ -39,6 +40,7 @@ function Vault({ profile, onSignOut }) {
   const [selectedRoot, setSelectedRoot] = useState(null)
   const [childAssets, setChildAssets] = useState([])
   const [selectedChild, setSelectedChild] = useState(null)
+  const [tab, setTab] = useState('documents')
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -86,6 +88,11 @@ function Vault({ profile, onSignOut }) {
   // The asset documents currently render against: the child if nested roles
   // have drilled that far, otherwise the root itself.
   const documentAsset = childType ? selectedChild : selectedRoot
+
+  // Moving to a different asset shouldn't leave you on the previous one's tab.
+  useEffect(() => {
+    setTab('documents')
+  }, [documentAsset?.id])
 
   return (
     <div className="vault-shell">
@@ -147,7 +154,27 @@ function Vault({ profile, onSignOut }) {
         {documentAsset && (
           <>
             <ShareLinkNotice />
-            <DocumentList assetId={documentAsset.id} userId={profile.id} />
+
+            <div className="tab-bar">
+              <button
+                className={`tab ${tab === 'documents' ? 'active' : ''}`}
+                onClick={() => setTab('documents')}
+              >
+                Documents
+              </button>
+              <button
+                className={`tab ${tab === 'hisab' ? 'active' : ''}`}
+                onClick={() => setTab('hisab')}
+              >
+                Hisab
+              </button>
+            </div>
+
+            {tab === 'documents' ? (
+              <DocumentList assetId={documentAsset.id} userId={profile.id} />
+            ) : (
+              <PaymentList assetId={documentAsset.id} userId={profile.id} />
+            )}
           </>
         )}
       </main>

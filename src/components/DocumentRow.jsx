@@ -45,7 +45,12 @@ export default function DocumentRow({ doc, userId, onChanged }) {
     )
       .then((pairs) => {
         if (cancelled) return
-        setUrls((prev) => ({ ...prev, ...Object.fromEntries(pairs) }))
+        // Not Object.fromEntries: missing on Android WebView below 73.
+        setUrls((prev) => {
+          const next = { ...prev }
+          for (const [path, url] of pairs) next[path] = url
+          return next
+        })
       })
       .catch((err) => !cancelled && setError(err.message))
 
