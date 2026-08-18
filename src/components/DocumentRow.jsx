@@ -8,6 +8,7 @@ import {
   updateDocument,
   deleteDocument,
 } from '../lib/api'
+import PhotoViewer from './PhotoViewer'
 
 const STATUS_LABEL = { missing: 'Missing', uploaded: 'Uploaded', verified: 'Verified' }
 
@@ -23,6 +24,7 @@ export default function DocumentRow({ doc, userId, onChanged }) {
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState(null)
   const [error, setError] = useState(null)
+  const [viewerIndex, setViewerIndex] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -159,10 +161,17 @@ export default function DocumentRow({ doc, userId, onChanged }) {
         </div>
 
         <div className="photo-strip">
-          {photos.map((photo) => (
+          {photos.map((photo, index) => (
             <div key={photo.id} className="photo-thumb">
               {urls[photo.thumbnail_path] ? (
-                <img src={urls[photo.thumbnail_path]} alt={doc.name} />
+                <button
+                  type="button"
+                  className="photo-thumb-open"
+                  onClick={() => setViewerIndex(index)}
+                  aria-label={`View photo ${index + 1}`}
+                >
+                  <img src={urls[photo.thumbnail_path]} alt={doc.name} />
+                </button>
               ) : (
                 <div className="photo-thumb-empty">…</div>
               )}
@@ -170,7 +179,10 @@ export default function DocumentRow({ doc, userId, onChanged }) {
                 type="button"
                 className="photo-remove"
                 title="Remove photo"
-                onClick={() => handleRemovePhoto(photo)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleRemovePhoto(photo)
+                }}
                 disabled={busy}
               >
                 ×
@@ -212,6 +224,15 @@ export default function DocumentRow({ doc, userId, onChanged }) {
           Remove
         </button>
       </div>
+
+      {viewerIndex !== null && (
+        <PhotoViewer
+          photos={photos}
+          index={viewerIndex}
+          onClose={() => setViewerIndex(null)}
+          onIndexChange={setViewerIndex}
+        />
+      )}
     </div>
   )
 }

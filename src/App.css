@@ -397,6 +397,128 @@ input {
   display: block;
 }
 
+.photo-thumb-open {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+/* lightbox */
+
+.photo-viewer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 14, 8, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+
+/* plain fallbacks before each max()-based rule below: browsers without
+   max() drop the whole declaration rather than just ignoring env() */
+.photo-viewer-close {
+  top: 0.75rem;
+  right: 0.75rem;
+}
+.photo-viewer-prev {
+  left: 0.5rem;
+}
+.photo-viewer-next {
+  right: 0.5rem;
+}
+.photo-viewer-count {
+  bottom: 1rem;
+}
+
+.photo-viewer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.photo-viewer-body {
+  max-width: 92vw;
+  max-height: 88vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.photo-viewer-body img {
+  max-width: 92vw;
+  max-height: 88vh;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+}
+
+.photo-viewer-body .muted,
+.photo-viewer-body .error-text {
+  color: var(--parchment);
+}
+
+.photo-viewer-close {
+  position: absolute;
+  top: max(0.75rem, env(safe-area-inset-top));
+  right: max(0.75rem, env(safe-area-inset-right));
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(242, 232, 208, 0.15);
+  color: var(--parchment);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.photo-viewer-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(242, 232, 208, 0.15);
+  color: var(--parchment);
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.photo-viewer-prev {
+  left: max(0.5rem, env(safe-area-inset-left));
+}
+
+.photo-viewer-next {
+  right: max(0.5rem, env(safe-area-inset-right));
+}
+
+.photo-viewer-count {
+  position: absolute;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--parchment);
+  background: rgba(20, 14, 8, 0.6);
+  padding: 0.2rem 0.7rem;
+  border-radius: 10px;
+  font-size: 0.8rem;
+}
+
 .photo-thumb-empty {
   display: flex;
   align-items: center;
