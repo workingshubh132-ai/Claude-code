@@ -35,10 +35,13 @@ export async function listChildAssets(parentId) {
   return data
 }
 
-export async function createAsset({ ownerId, parentId = null, type, name, metadata = {} }) {
+// `extra` merges in type-specific columns (e.g. status: 'available' for a
+// freshly created unit) without every caller needing to know the full
+// assets row shape.
+export async function createAsset({ ownerId, parentId = null, type, name, metadata = {}, extra = {} }) {
   const { data, error } = await supabase
     .from('assets')
-    .insert({ owner_id: ownerId, parent_id: parentId, type, name, metadata })
+    .insert({ owner_id: ownerId, parent_id: parentId, type, name, metadata, ...extra })
     .select()
     .single()
   if (error) throw error
@@ -204,6 +207,8 @@ export async function createPayment({
   amount,
   direction,
   dueDate,
+  milestoneId,
+  percent,
   recordedBy,
 }) {
   const { data, error } = await supabase
@@ -215,6 +220,8 @@ export async function createPayment({
       direction,
       status: 'pending',
       due_date: dueDate || null,
+      milestone_id: milestoneId || null,
+      percent: percent === '' || percent == null ? null : percent,
       recorded_by: recordedBy,
     })
     .select()
@@ -248,6 +255,64 @@ export function subscribeToPayments(assetId, onChange) {
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'payments', filter: `asset_id=eq.${assetId}` },
+      onChange
+    )
+    .subscribe()
+  return () => supabase.removeChannel(channel)
+}
+
+// --- construction milestones -------------------------------------------
+
+export async function listMilestones(assetId) {
+  const { data, error } = await supabase
+    .from('milestones')
+    .select('*')
+    .eq('asset_id', assetId)
+    .order('sequence', { ascending: true })
+  if (error) throw error
+  return data
+}
+
+export async function createMilestone({ assetId, name, plannedDate, sequence }) {
+  const { data, error } = await supabase
+    .from('milestones')
+    .insert({
+      asset_id: assetId,
+      name,
+      planned_date: plannedDate || null,
+      sequence,
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function setMilestoneStatus(id, status) {
+  const { data, error } = await supabase
+    .from('milestones')
+    .update({
+      status,
+      completed_date: status === 'completed' ? new Date().toISOString().slice(0, 10) : null,
+    })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function deleteMilestone(id) {
+  const { error } = await supabase.from('milestones').delete().eq('id', id)
+  if (error) throw error
+}
+
+export function subscribeToMilestones(assetId, onChange) {
+  const channel = supabase
+    .channel(`milestones-${assetId}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'milestones', filter: `asset_id=eq.${assetId}` },
       onChange
     )
     .subscribe()

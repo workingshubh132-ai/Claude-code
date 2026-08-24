@@ -137,6 +137,29 @@ input {
   border-color: var(--brass);
 }
 
+.asset-card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.status-badge-unit-available {
+  background: var(--parchment);
+  color: var(--ink-soft);
+  border: 1px solid var(--parchment-line);
+}
+
+.status-badge-unit-booked {
+  background: var(--brass-light);
+  color: var(--ink);
+}
+
+.status-badge-unit-sold {
+  background: var(--verified);
+  color: var(--parchment);
+}
+
 /* auth */
 
 .auth-shell {
@@ -342,6 +365,119 @@ input {
   border-radius: 4px;
   background: var(--parchment);
   color: var(--ink);
+}
+
+/* info panels (unit / project) */
+
+.info-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  max-width: 420px;
+}
+
+.info-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.info-panel select {
+  padding: 0.5rem;
+  border: 1px solid var(--parchment-line);
+  border-radius: 4px;
+  background: var(--parchment);
+  color: var(--ink);
+}
+
+/* milestones */
+
+.milestone-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.milestone-progress-bar {
+  flex: 1;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--parchment);
+  border: 1px solid var(--parchment-line);
+  overflow: hidden;
+}
+
+.milestone-progress-fill {
+  height: 100%;
+  background: var(--verified);
+  transition: width 0.2s ease;
+}
+
+.milestone-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.milestone-item {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+  background: var(--parchment-dark);
+  border: 1px solid var(--parchment-line);
+  border-left: 5px solid var(--ink-soft);
+  border-radius: 4px;
+  padding: 0.75rem;
+}
+
+.milestone-item.status-in_progress {
+  border-left-color: var(--brass);
+}
+
+.milestone-item.status-completed {
+  border-left-color: var(--verified);
+}
+
+.milestone-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-top: 0.35rem;
+  flex-shrink: 0;
+  background: var(--ink-soft);
+}
+
+.milestone-item.status-in_progress .milestone-dot {
+  background: var(--brass);
+}
+
+.milestone-item.status-completed .milestone-dot {
+  background: var(--verified);
+}
+
+.milestone-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.status-badge-milestone-pending {
+  background: var(--parchment);
+  color: var(--ink-soft);
+  border: 1px solid var(--parchment-line);
+}
+
+.status-badge-milestone-in_progress {
+  background: var(--brass-light);
+  color: var(--ink);
+}
+
+.status-badge-milestone-completed {
+  background: var(--verified);
+  color: var(--parchment);
 }
 
 /* documents */
@@ -685,6 +821,19 @@ input {
 
   .hisab-summary {
     gap: 1rem;
+  }
+
+  .milestone-item {
+    flex-wrap: wrap;
+  }
+
+  .milestone-item .document-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    width: 100%;
+    gap: 0.75rem;
+    padding-left: calc(10px + 0.85rem);
   }
 
   .add-form .brass-button {

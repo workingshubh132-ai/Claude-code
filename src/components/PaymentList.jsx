@@ -5,6 +5,7 @@ import {
   setPaymentStatus,
   deletePayment,
   subscribeToPayments,
+  listMilestones,
 } from '../lib/api'
 
 const money = new Intl.NumberFormat('en-IN', {
@@ -20,13 +21,21 @@ function isOverdue(payment) {
 
 export default function PaymentList({ assetId, userId }) {
   const [payments, setPayments] = useState([])
+  const [milestones, setMilestones] = useState([])
   const [loading, setLoading] = useState(true)
   const [description, setDescription] = useState('')
   const [amount, setAmount] = useState('')
   const [direction, setDirection] = useState('incoming')
   const [dueDate, setDueDate] = useState('')
+  const [milestoneId, setMilestoneId] = useState('')
+  const [percent, setPercent] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+
+  const milestoneById = useMemo(
+    () => Object.fromEntries(milestones.map((m) => [m.id, m])),
+    [milestones]
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -39,6 +48,13 @@ export default function PaymentList({ assetId, userId }) {
     const unsubscribe = subscribeToPayments(assetId, () => {
       listPayments(assetId).then((data) => !cancelled && setPayments(data))
     })
+
+    // Milestones let a hisab entry say "20% on Foundation" instead of only a
+    // free-text description. Best-effort: if this asset has none, the
+    // dropdown simply doesn't appear.
+    listMilestones(assetId)
+      .then((data) => !cancelled && setMilestones(data))
+      .catch(() => {})
 
     return () => {
       cancelled = true
@@ -74,12 +90,16 @@ export default function PaymentList({ assetId, userId }) {
         amount: value,
         direction,
         dueDate,
+        milestoneId: milestoneId || null,
+        percent: percent === '' ? null : Number.parseFloat(percent),
         recordedBy: userId,
       })
       setPayments((prev) => [...prev, payment])
       setDescription('')
       setAmount('')
       setDueDate('')
+      setMilestoneId('')
+      setPercent('')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -157,6 +177,30 @@ export default function PaymentList({ assetId, userId }) {
           onChange={(e) => setDueDate(e.target.value)}
           title="Due date"
         />
+        {milestones.length > 0 && (
+          <select
+            value={milestoneId}
+            onChange={(e) => setMilestoneId(e.target.value)}
+            title="Linked construction stage"
+          >
+            <option value="">No stage</option>
+            {milestones.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+        )}
+        {milestones.length > 0 && (
+          <input
+            type="text"
+            inputMode="decimal"
+            placeholder="% of total"
+            value={percent}
+            onChange={(e) => setPercent(e.target.value)}
+            title="Percentage of the agreement value"
+          />
+        )}
         <button className="brass-button small" type="submit" disabled={busy}>
           {busy ? 'Adding…' : 'Add entry'}
         </button>
@@ -184,6 +228,10 @@ export default function PaymentList({ assetId, userId }) {
               </div>
               <div className="document-meta">
                 <span>{payment.direction === 'incoming' ? 'To receive' : 'To pay'}</span>
+                {payment.percent != null && <span>{payment.percent}% of total</span>}
+                {payment.milestone_id && milestoneById[payment.milestone_id] && (
+                  <span>On {milestoneById[payment.milestone_id].name}</span>
+                )}
                 {payment.due_date && (
                   <span className={isOverdue(payment) ? 'expiry-warning' : ''}>
                     Due {new Date(payment.due_date).toLocaleDateString()}

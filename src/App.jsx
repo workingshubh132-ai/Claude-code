@@ -4,6 +4,9 @@ import AuthScreen from './components/AuthScreen'
 import AssetList from './components/AssetList'
 import DocumentList from './components/DocumentList'
 import PaymentList from './components/PaymentList'
+import MilestoneList from './components/MilestoneList'
+import UnitInfo from './components/UnitInfo'
+import ProjectInfo from './components/ProjectInfo'
 import {
   ROOT_TYPE_BY_ROLE,
   CHILD_TYPE_BY_ROOT_TYPE,
@@ -22,6 +25,26 @@ const ROOT_PLURAL = {
 }
 const CHILD_LABEL = { unit: 'Unit', resident: 'Resident' }
 const CHILD_PLURAL = { unit: 'Units', resident: 'Residents' }
+
+// Which tabs a focused asset gets, in display order. A project/building also
+// carries its own documents/hisab (e.g. the RERA certificate lives on the
+// project itself, not on any one unit) alongside drilling into its children.
+const TABS_BY_TYPE = {
+  property: ['documents', 'hisab'],
+  deal: ['documents', 'hisab'],
+  project: ['units', 'documents', 'hisab', 'milestones', 'info'],
+  unit: ['documents', 'hisab', 'info'],
+  building: ['residents', 'documents', 'hisab'],
+  resident: ['documents', 'hisab'],
+}
+const TAB_LABEL = {
+  documents: 'Documents',
+  hisab: 'Hisab',
+  milestones: 'Milestones',
+  info: 'Info',
+  units: 'Units',
+  residents: 'Residents',
+}
 
 export default function App() {
   const { session, profile, loading, signOut } = useAuth()
@@ -72,8 +95,21 @@ function Vault({ profile, onSignOut }) {
       parentId: selectedRoot.id,
       type: childType,
       name,
+      // A freshly added unit is presumed sellable until marked otherwise;
+      // residents have no sale status, so this only matters for childType 'unit'.
+      extra: childType === 'unit' ? { status: 'available' } : {},
     })
     setChildAssets((prev) => [...prev, asset])
+  }
+
+  function handleRootChanged(updated) {
+    setSelectedRoot(updated)
+    setRootAssets((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
+  }
+
+  function handleChildChanged(updated) {
+    setSelectedChild(updated)
+    setChildAssets((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
   }
 
   function goHome() {
@@ -85,14 +121,21 @@ function Vault({ profile, onSignOut }) {
     setSelectedChild(null)
   }
 
-  // The asset documents currently render against: the child if nested roles
-  // have drilled that far, otherwise the root itself.
-  const documentAsset = childType ? selectedChild : selectedRoot
+  // The asset whose tabs are currently on screen: the child if navigation has
+  // drilled that far, otherwise the root itself (which has its own tabs too,
+  // not just a list of children to drill into).
+  const currentAsset = selectedChild || selectedRoot
+  const tabs = currentAsset ? TABS_BY_TYPE[currentAsset.type] || [] : []
 
-  // Moving to a different asset shouldn't leave you on the previous one's tab.
+  // Moving to a different asset shouldn't leave you on a tab it doesn't have.
+  // Deliberately keyed on the id, not the object: Info panels replace
+  // currentAsset with a new object after saving (see handleRootChanged /
+  // handleChildChanged), and re-running this on every reference change would
+  // bounce the user back to the first tab right after they hit Save.
   useEffect(() => {
-    setTab('documents')
-  }, [documentAsset?.id])
+    if (currentAsset) setTab(TABS_BY_TYPE[currentAsset.type]?.[0] || 'documents')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentAsset?.id])
 
   return (
     <div className="vault-shell">
@@ -141,39 +184,45 @@ function Vault({ profile, onSignOut }) {
           />
         )}
 
-        {selectedRoot && childType && !selectedChild && (
-          <AssetList
-            assets={childAssets}
-            label={CHILD_LABEL[childType]}
-            plural={CHILD_PLURAL[childType]}
-            onAdd={handleAddChild}
-            onSelect={setSelectedChild}
-          />
-        )}
-
-        {documentAsset && (
+        {currentAsset && (
           <>
             <ShareLinkNotice />
 
             <div className="tab-bar">
-              <button
-                className={`tab ${tab === 'documents' ? 'active' : ''}`}
-                onClick={() => setTab('documents')}
-              >
-                Documents
-              </button>
-              <button
-                className={`tab ${tab === 'hisab' ? 'active' : ''}`}
-                onClick={() => setTab('hisab')}
-              >
-                Hisab
-              </button>
+              {tabs.map((key) => (
+                <button
+                  key={key}
+                  className={`tab ${tab === key ? 'active' : ''}`}
+                  onClick={() => setTab(key)}
+                >
+                  {TAB_LABEL[key]}
+                </button>
+              ))}
             </div>
 
-            {tab === 'documents' ? (
-              <DocumentList assetId={documentAsset.id} userId={profile.id} />
-            ) : (
-              <PaymentList assetId={documentAsset.id} userId={profile.id} />
+            {(tab === 'units' || tab === 'residents') && (
+              <AssetList
+                assets={childAssets}
+                label={CHILD_LABEL[childType]}
+                plural={CHILD_PLURAL[childType]}
+                onAdd={handleAddChild}
+                onSelect={setSelectedChild}
+              />
+            )}
+            {tab === 'documents' && (
+              <DocumentList
+                assetId={currentAsset.id}
+                userId={profile.id}
+                assetType={currentAsset.type}
+              />
+            )}
+            {tab === 'hisab' && <PaymentList assetId={currentAsset.id} userId={profile.id} />}
+            {tab === 'milestones' && <MilestoneList assetId={currentAsset.id} />}
+            {tab === 'info' && currentAsset.type === 'project' && (
+              <ProjectInfo project={currentAsset} onChanged={handleRootChanged} />
+            )}
+            {tab === 'info' && currentAsset.type === 'unit' && (
+              <UnitInfo unit={currentAsset} onChanged={handleChildChanged} />
             )}
           </>
         )}

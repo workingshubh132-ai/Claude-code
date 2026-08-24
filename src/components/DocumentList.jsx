@@ -2,13 +2,33 @@ import { useEffect, useState } from 'react'
 import { listDocuments, createDocument, subscribeToDocuments } from '../lib/api'
 import DocumentRow from './DocumentRow'
 
-export default function DocumentList({ assetId, userId }) {
+const CATEGORY_PRESETS = {
+  property: ['Sale Deed', 'Title Deed', 'Property Tax Receipt', 'Encumbrance Certificate', 'ID Proof'],
+  deal: ['Sale Agreement', 'Token Receipt', 'Buyer ID Proof', 'Seller ID Proof', 'Commission Agreement'],
+  project: [
+    'RERA Certificate',
+    'Commencement Certificate',
+    'Sanctioned Plan',
+    'Environmental Clearance',
+    'Fire NOC',
+    'Occupancy Certificate',
+    'Completion Certificate',
+  ],
+  unit: ['Allotment Letter', 'Sale Agreement', 'Payment Receipt', 'Possession Letter'],
+  building: ['Society Registration', 'Occupancy Certificate', 'Fire NOC', 'AGM Minutes'],
+  resident: ['Sale Deed', 'NOC', 'ID Proof', 'Maintenance Agreement'],
+}
+
+export default function DocumentList({ assetId, userId, assetType }) {
   const [docs, setDocs] = useState([])
   const [loading, setLoading] = useState(true)
   const [name, setName] = useState('')
   const [category, setCategory] = useState('')
   const [expiryDate, setExpiryDate] = useState('')
+  const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+
+  const presets = CATEGORY_PRESETS[assetType] || []
 
   useEffect(() => {
     let cancelled = false
@@ -37,8 +57,9 @@ export default function DocumentList({ assetId, userId }) {
 
   async function handleAdd(e) {
     e.preventDefault()
-    if (!name.trim() || !category.trim()) return
+    if (!name.trim() || !category.trim() || busy) return
     setError(null)
+    setBusy(true)
     try {
       const doc = await createDocument({
         assetId,
@@ -53,6 +74,8 @@ export default function DocumentList({ assetId, userId }) {
       setExpiryDate('')
     } catch (err) {
       setError(err.message)
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -68,10 +91,18 @@ export default function DocumentList({ assetId, userId }) {
           placeholder="Category (e.g. Title)"
           value={category}
           onChange={(e) => setCategory(e.target.value)}
+          list={presets.length > 0 ? 'category-presets' : undefined}
         />
+        {presets.length > 0 && (
+          <datalist id="category-presets">
+            {presets.map((p) => (
+              <option key={p} value={p} />
+            ))}
+          </datalist>
+        )}
         <input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} />
-        <button className="brass-button small" type="submit">
-          Add document
+        <button className="brass-button small" type="submit" disabled={busy}>
+          {busy ? 'Adding…' : 'Add document'}
         </button>
       </form>
 
